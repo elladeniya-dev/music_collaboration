@@ -19,7 +19,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/job-post")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class JobPostController {
 
     private final JobPostService service;

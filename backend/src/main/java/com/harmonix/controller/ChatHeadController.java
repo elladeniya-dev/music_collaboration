@@ -13,7 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/chat-heads")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class ChatHeadController {
 
     private final ChatHeadService chatHeadService;

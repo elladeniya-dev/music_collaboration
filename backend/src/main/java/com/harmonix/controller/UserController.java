@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class UserController {
 
     private final UserRepository repo;

@@ -16,7 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/messages")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class MessageController {
 
     private final MessageService messageService;

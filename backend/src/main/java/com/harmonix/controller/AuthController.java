@@ -8,6 +8,7 @@ import com.harmonix.model.User;
 import com.harmonix.repository.UserRepository;
 import com.harmonix.security.AuthHelper;
 import com.harmonix.security.JwtUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,22 +17,23 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class AuthController {
 
     private final UserRepository userRepo;
-    private static final String CLIENT_ID = "";
+    private final String clientId;
 
-
-    public AuthController(UserRepository userRepo) {
+    public AuthController(UserRepository userRepo,
+                          @Value("${google.client.id}") String clientId) {
         this.userRepo = userRepo;
+        this.clientId = clientId;
     }
 
     @PostMapping("/login")
     public ResponseEntity<User> login(@RequestBody String token) throws Exception {
         GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(), GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singletonList(CLIENT_ID))
+                .setAudience(Collections.singletonList(clientId))
                 .build();
 
         GoogleIdToken idToken = verifier.verify(token);

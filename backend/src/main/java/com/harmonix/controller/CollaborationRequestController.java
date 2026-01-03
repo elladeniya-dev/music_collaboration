@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping("/api/collab-requests")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class CollaborationRequestController {
 
     private final CollaborationRequestService service;
