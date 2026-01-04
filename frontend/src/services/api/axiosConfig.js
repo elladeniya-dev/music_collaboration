@@ -30,8 +30,11 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access
-      window.location.href = '/';
+      // Only redirect if not already on login page or oauth callback
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/' && currentPath !== '/oauth/callback') {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

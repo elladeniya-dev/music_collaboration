@@ -3,7 +3,7 @@ import axiosInstance from './api/axiosConfig';
 class CollaborationService {
   async getAllCollaborationRequests() {
     try {
-      const response = await axiosInstance.get('/collab-requests/all');
+      const response = await axiosInstance.get('/collaboration-requests/all');
       return response.data.data;
     } catch (error) {
       throw error;
@@ -12,7 +12,7 @@ class CollaborationService {
 
   async acceptCollaborationRequest(requestId) {
     try {
-      const response = await axiosInstance.post(`/collab-requests/${requestId}/accept`);
+      const response = await axiosInstance.post(`/collaboration-requests/${requestId}/accept`);
       return response.data.data;
     } catch (error) {
       throw error;
@@ -21,7 +21,7 @@ class CollaborationService {
 
   async deleteCollaborationRequest(requestId) {
     try {
-      const response = await axiosInstance.delete(`/collab-requests/${requestId}`);
+      const response = await axiosInstance.delete(`/collaboration-requests/${requestId}`);
       return response.data.data;
     } catch (error) {
       throw error;
@@ -30,7 +30,7 @@ class CollaborationService {
 
   async updateCollaborationRequest(requestId, payload) {
     try {
-      const response = await axiosInstance.put(`/collab-requests/${requestId}`, payload);
+      const response = await axiosInstance.put(`/collaboration-requests/${requestId}`, payload);
       return response.data.data;
     } catch (error) {
       throw error;
@@ -39,7 +39,7 @@ class CollaborationService {
 
   async createCollaborationRequest(payload) {
     try {
-      const response = await axiosInstance.post('/collab-requests', payload);
+      const response = await axiosInstance.post('/collaboration-requests', payload);
       return response.data.data;
     } catch (error) {
       throw error;

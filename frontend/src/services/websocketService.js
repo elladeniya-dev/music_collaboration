@@ -91,8 +91,16 @@ class WebSocketService {
    * @returns {string} Subscription ID
    */
   subscribeToChatRoom(chatId, callback) {
-    if (!this.client || !this.connected) {
-      console.error('WebSocket not connected. Call connect() first.');
+    if (!this.client) {
+      console.error('WebSocket not initialized. Call connect() first.');
+      return null;
+    }
+
+    // Check if client is active, not just connected flag
+    if (!this.client.connected) {
+      console.warn('WebSocket not fully connected yet. Subscription will be delayed.');
+      // Retry after connection is established
+      setTimeout(() => this.subscribeToChatRoom(chatId, callback), 500);
       return null;
     }
 
@@ -104,18 +112,23 @@ class WebSocketService {
       this.unsubscribe(subscriptionId);
     }
 
-    const subscription = this.client.subscribe(destination, (message) => {
-      try {
-        const messageData = JSON.parse(message.body);
-        callback(messageData);
-      } catch (error) {
-        console.error('Error parsing message:', error);
-      }
-    });
+    try {
+      const subscription = this.client.subscribe(destination, (message) => {
+        try {
+          const messageData = JSON.parse(message.body);
+          callback(messageData);
+        } catch (error) {
+          console.error('Error parsing message:', error);
+        }
+      });
 
-    this.subscriptions.set(subscriptionId, subscription);
-    console.log(`📩 Subscribed to chat room: ${chatId}`);
-    return subscriptionId;
+      this.subscriptions.set(subscriptionId, subscription);
+      console.log(`📩 Subscribed to chat room: ${chatId}`);
+      return subscriptionId;
+    } catch (error) {
+      console.error('Error subscribing to chat room:', error);
+      return null;
+    }
   }
 
   /**
@@ -124,7 +137,7 @@ class WebSocketService {
    * @param {function} callback - Callback for notifications
    */
   subscribeToUserMessages(userId, callback) {
-    if (!this.client || !this.connected) {
+    if (!this.client || !this.client.connected) {
       console.error('WebSocket not connected');
       return null;
     }
@@ -136,18 +149,23 @@ class WebSocketService {
       this.unsubscribe(subscriptionId);
     }
 
-    const subscription = this.client.subscribe(destination, (message) => {
-      try {
-        const messageData = JSON.parse(message.body);
-        callback(messageData);
-      } catch (error) {
-        console.error('Error parsing notification:', error);
-      }
-    });
+    try {
+      const subscription = this.client.subscribe(destination, (message) => {
+        try {
+          const messageData = JSON.parse(message.body);
+          callback(messageData);
+        } catch (error) {
+          console.error('Error parsing notification:', error);
+        }
+      });
 
-    this.subscriptions.set(subscriptionId, subscription);
-    console.log(`🔔 Subscribed to user messages: ${userId}`);
-    return subscriptionId;
+      this.subscriptions.set(subscriptionId, subscription);
+      console.log(`🔔 Subscribed to user messages: ${userId}`);
+      return subscriptionId;
+    } catch (error) {
+      console.error('Error subscribing to user messages:', error);
+      return null;
+    }
   }
 
   /**
@@ -156,7 +174,7 @@ class WebSocketService {
    * @param {function} callback - Callback for typing events
    */
   subscribeToTyping(chatId, callback) {
-    if (!this.client || !this.connected) return null;
+    if (!this.client || !this.client.connected) return null;
 
     const destination = `/topic/chat/${chatId}/typing`;
     const subscriptionId = `typing-${chatId}`;
@@ -165,17 +183,22 @@ class WebSocketService {
       this.unsubscribe(subscriptionId);
     }
 
-    const subscription = this.client.subscribe(destination, (message) => {
-      try {
-        const typingData = JSON.parse(message.body);
-        callback(typingData);
-      } catch (error) {
-        console.error('Error parsing typing indicator:', error);
-      }
-    });
+    try {
+      const subscription = this.client.subscribe(destination, (message) => {
+        try {
+          const typingData = JSON.parse(message.body);
+          callback(typingData);
+        } catch (error) {
+          console.error('Error parsing typing indicator:', error);
+        }
+      });
 
-    this.subscriptions.set(subscriptionId, subscription);
-    return subscriptionId;
+      this.subscriptions.set(subscriptionId, subscription);
+      return subscriptionId;
+    } catch (error) {
+      console.error('Error subscribing to typing:', error);
+      return null;
+    }
   }
 
   /**
@@ -183,7 +206,7 @@ class WebSocketService {
    * @param {object} message - Message object
    */
   sendMessage(message) {
-    if (!this.client || !this.connected) {
+    if (!this.client || !this.client.connected) {
       console.error('WebSocket not connected. Cannot send message.');
       throw new Error('WebSocket not connected');
     }
@@ -199,7 +222,7 @@ class WebSocketService {
    * @param {object} indicator - Typing indicator object
    */
   sendTypingIndicator(indicator) {
-    if (!this.client || !this.connected) return;
+    if (!this.client || !this.client.connected) return;
 
     this.client.publish({
       destination: '/app/typing',

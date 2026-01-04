@@ -3,7 +3,7 @@ import axiosInstance from './api/axiosConfig';
 class JobPostService {
   async getAllJobPosts() {
     try {
-      const response = await axiosInstance.get('/job-post');
+      const response = await axiosInstance.get('/job-posts');
       return response.data.data;
     } catch (error) {
       throw error;
@@ -12,7 +12,7 @@ class JobPostService {
 
   async getJobPostById(id) {
     try {
-      const response = await axiosInstance.get(`/job-post/${id}`);
+      const response = await axiosInstance.get(`/job-posts/${id}`);
       return response.data.data;
     } catch (error) {
       throw error;
@@ -21,7 +21,7 @@ class JobPostService {
 
   async createJobPost(formData) {
     try {
-      const response = await axiosInstance.post('/job-post', formData, {
+      const response = await axiosInstance.post('/job-posts', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -34,7 +34,7 @@ class JobPostService {
 
   async updateJobPost(id, formData) {
     try {
-      const response = await axiosInstance.put(`/job-post/${id}`, formData, {
+      const response = await axiosInstance.put(`/job-posts/${id}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -47,7 +47,7 @@ class JobPostService {
 
   async deleteJobPost(id) {
     try {
-      const response = await axiosInstance.delete(`/job-post/${id}`);
+      const response = await axiosInstance.delete(`/job-posts/${id}`);
       return response.data.data;
     } catch (error) {
       throw error;
