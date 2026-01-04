@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Avatar, IconButton, Chip } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { useUser } from '../context/UserContext';
 import { chatService, userService } from '../services';
 import { showError, showInputDialog, showConfirmation, showSuccess, getUserId } from '../utils';
@@ -212,55 +210,87 @@ const ChatInterface = () => {
 
   const partner = userMap[partnerId];
 
-  if (loadingUser) return <div className="text-center mt-10">Loading...</div>;
-  if (!getUserId(user)) return <div className="text-center mt-10 text-red-600">Login required</div>;
+  if (loadingUser) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-slate-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!getUserId(user)) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-red-400">Login required</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-[calc(100vh-64px)] flex overflow-hidden">
+    <div className="w-full h-[calc(100vh-64px)] flex overflow-hidden bg-slate-900">
       {/* Sidebar */}
-      <aside className="w-[280px] bg-white border-r border-gray-200 overflow-y-auto">
-        <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100">
-          <h2 className="text-lg font-semibold">Chats</h2>
+      <aside className="w-80 bg-slate-800 border-r border-slate-700 flex flex-col">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-700">
+          <h2 className="text-lg font-semibold text-white">Messages</h2>
           <button
             onClick={startNewChat}
             title="Start New Chat"
-            className="text-blue-600 text-lg font-bold hover:scale-110"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
           >
-            +
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
           </button>
         </div>
-        <ul>
+        
+        <ul className="flex-1 overflow-y-auto">
           {chatHeads.map((chat) => {
             const uid = getUserId(user);
             const pid = chat.participants.find(p => p !== uid);
-            const partner = userMap[pid];
+            const chatPartner = userMap[pid];
+            const isActive = pid === partnerId;
 
             return (
               <li
                 key={chat._id || chat.id}
-                className="px-4 py-3 hover:bg-gray-100 flex items-center justify-between transition w-full"
+                className={`px-4 py-3 hover:bg-slate-700 flex items-center justify-between transition cursor-pointer ${
+                  isActive ? 'bg-slate-700' : ''
+                }`}
+                onClick={() => navigate(`/chat/${pid}`)}
               >
-                <div
-                  onClick={() => navigate(`/chat/${pid}`)}
-                  className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                >
-                  <Avatar src={partner?.profileImage} className="w-10 h-10">{partner?.name?.[0]}</Avatar>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm text-gray-900 truncate">{partner?.name}</div>
-                    <div className="text-xs text-gray-500 truncate">{chat.lastMessage}</div>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {chatPartner?.profileImage ? (
+                    <img
+                      src={chatPartner.profileImage}
+                      alt={chatPartner?.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold">
+                      {chatPartner?.name?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm text-white truncate">
+                      {chatPartner?.name || 'Unknown'}
+                    </div>
+                    <div className="text-xs text-slate-400 truncate">
+                      {chat.lastMessage || 'No messages yet'}
+                    </div>
                   </div>
                 </div>
-                <IconButton
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteChat(pid);
                   }}
-                  className="ml-2"
-                  sx={{ minWidth: 'auto' }}
+                  className="ml-2 p-1 text-slate-400 hover:text-red-400 transition-colors"
                   title="Delete chat"
                 >
-                  <DeleteIcon fontSize="small" className="text-red-600 hover:text-red-800" />
-                </IconButton>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </li>
             );
           })}
@@ -268,20 +298,26 @@ const ChatInterface = () => {
       </aside>
 
       {/* Chat Area */}
-      <section className="max-w-[100%] flex-1 flex flex-col bg-gray-50">
-        <header className="h-16 px-6 flex items-center justify-between border-b border-gray-200 bg-white">
-          <h2 className="text-base font-bold text-gray-800">{partner?.name || 'Select a conversation'}</h2>
+      <section className="flex-1 flex flex-col bg-slate-900">
+        {/* Header */}
+        <header className="h-16 px-6 flex items-center justify-between border-b border-slate-700 bg-slate-800">
+          <h2 className="text-base font-semibold text-white">
+            {partner?.name || 'Select a conversation'}
+          </h2>
           {partnerId && (
-            <Chip 
-              label={connected ? '🟢 Connected' : '🔴 Disconnected'} 
-              size="small" 
-              color={connected ? 'success' : 'default'}
-              variant="outlined"
-            />
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+              connected 
+                ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                : 'bg-slate-700 text-slate-400 border border-slate-600'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-slate-400'}`}></span>
+              {connected ? 'Connected' : 'Disconnected'}
+            </div>
           )}
         </header>
 
-        <main className="flex-1 overflow-y-auto px-6 py-4 space-y-3 custom-scrollbar bg-gray-50">
+        {/* Messages */}
+        <main className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-slate-900">
           {messages.map((msg, index) => {
             const isSender = msg.senderId === getUserId(user);
             const timeStr = new Date(msg.timestamp).toLocaleString('en-US', {
@@ -293,18 +329,25 @@ const ChatInterface = () => {
 
             return (
               <div key={msg._id || msg.id || index} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[100%] px-5 py-3 rounded-2xl text-[1rem] shadow-sm leading-relaxed ${
-                  isSender ? 'bg-[#072d3a] text-white' : 'bg-white text-gray-800 border border-gray-200'
+                <div className={`max-w-[70%] px-4 py-3 rounded-2xl shadow-sm ${
+                  isSender 
+                    ? 'bg-indigo-600 text-white' 
+                    : 'bg-slate-800 text-slate-200 border border-slate-700'
                 }`}>
-                  <div>{msg.message}</div>
-                  <div className="text-[0.7rem] text-right mt-2 text-gray-400">{timeStr}</div>
+                  <div className="text-sm leading-relaxed">{msg.message}</div>
+                  <div className={`text-xs text-right mt-1 ${
+                    isSender ? 'text-indigo-200' : 'text-slate-500'
+                  }`}>
+                    {timeStr}
+                  </div>
                 </div>
               </div>
             );
           })}
+          
           {partnerTyping && (
             <div className="flex justify-start">
-              <div className="bg-white text-gray-600 px-5 py-3 rounded-2xl text-sm border border-gray-200">
+              <div className="bg-slate-800 text-slate-400 px-4 py-3 rounded-2xl text-sm border border-slate-700">
                 <span className="italic">{partner?.name} is typing...</span>
               </div>
             </div>
@@ -312,15 +355,19 @@ const ChatInterface = () => {
           <div ref={messagesEndRef} />
         </main>
 
-        <footer className="px-6 py-3 border-t border-gray-200 bg-white">
+        {/* Input Footer */}
+        <footer className="px-6 py-4 border-t border-slate-700 bg-slate-800">
           {!connected && (
-            <div className="text-xs text-amber-600 mb-2">
-              ⚠️ WebSocket disconnected. Messages will be sent via HTTP.
+            <div className="flex items-center gap-2 text-xs text-amber-400 mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              WebSocket disconnected. Messages will be sent via HTTP.
             </div>
           )}
-          <div className="flex items-center w-full bg-gray-100 rounded-full px-4 py-2">
+          <div className="flex items-center gap-3 bg-slate-700 rounded-lg px-4 py-3">
             <input
-              className="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder-gray-500"
+              className="flex-1 bg-transparent outline-none text-sm text-white placeholder-slate-400"
               type="text"
               placeholder="Type your message..."
               value={message}
@@ -333,7 +380,7 @@ const ChatInterface = () => {
             <button
               onClick={sendMessage}
               disabled={!message.trim()}
-              className="ml-4 text-blue-600 font-bold hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
             >
               Send
             </button>

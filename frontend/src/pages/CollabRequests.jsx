@@ -1,10 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Container, Typography, Card, CardContent, Button, CircularProgress,
-  Dialog, DialogTitle, DialogContent, TextField, DialogActions, Chip,
-  Tooltip, IconButton, Box, Grid
-} from '@mui/material';
-import { Edit, Send, Add, Delete } from '@mui/icons-material';
 import { useUser } from '../context/UserContext';
 import { collaborationService } from '../services';
 import { showSuccess, showError, showConfirmation } from '../utils';
@@ -96,112 +90,156 @@ const CollabRequests = () => {
   }, []);
 
   return (
-    <Container maxWidth="md" sx={{ mt: 6 }}>
-      <Typography variant="h4" align="center" sx={{ color: '#3f51b5', fontWeight: 'bold', mb: 4 }}>
-        Public Collaboration Requests
-      </Typography>
+    <div className="max-w-4xl mx-auto mt-8 px-4">
+      <h1 className="text-3xl font-bold text-center text-white mb-8">
+        Collaboration Requests
+      </h1>
 
-      <Box display="flex" justifyContent="center" mb={4}>
-        <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>
-          Add Collaboration Request
-        </Button>
-      </Box>
+      <div className="flex justify-center mb-8">
+        <button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Request
+        </button>
+      </div>
 
       {loading ? (
-        <Box textAlign="center" mt={10}>
-          <CircularProgress />
-        </Box>
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+        </div>
       ) : (
-        <Grid container spacing={2}>
+        <div className="space-y-4">
           {requests.length === 0 ? (
-            <Typography textAlign="center" color="textSecondary" width="100%">
-              No collaboration requests found.
-            </Typography>
+            <div className="text-center py-16 bg-slate-800 rounded-lg border border-slate-700">
+              <svg className="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <p className="text-slate-400">No collaboration requests found.</p>
+            </div>
           ) : (
             requests.map((req) => {
               const isCreator = req.creatorId === getUserId(user);
               return (
-                <Grid item xs={12} key={req.id}>
-                  <Card>
-                    <CardContent>
-                      <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="h6" fontWeight="bold">
-                          {req.title}
-                        </Typography>
-                        {isCreator && <Chip label="You" color="primary" size="small" />}
-                      </Box>
+                <div key={req.id} className="bg-slate-800 border border-slate-700 rounded-lg p-6 hover:border-indigo-600 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-xl font-semibold text-white">
+                      {req.title}
+                    </h3>
+                    {isCreator && (
+                      <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 text-xs font-medium rounded border border-indigo-500/30">
+                        Your Post
+                      </span>
+                    )}
+                  </div>
 
-                      <Typography variant="body2" color="textSecondary" mt={0.5}>
-                        Posted by: {req.creatorEmail || req.creatorId}
-                      </Typography>
+                  <p className="text-sm text-slate-400 mb-4">
+                    Posted by: {req.creatorEmail || req.creatorId}
+                  </p>
 
-                      <Typography variant="body1" mt={1.5}>
-                        {req.description}
-                      </Typography>
+                  <p className="text-slate-300 leading-relaxed mb-4">
+                    {req.description}
+                  </p>
 
-                      <Box display="flex" gap={1} mt={2}>
-                        {!isCreator && (
-                          <Button
-                            variant="contained"
-                            color="success"
-                            startIcon={<Send />}
-                            onClick={() => handleAccept(req.id)}
-                          >
-                            Apply
-                          </Button>
-                        )}
-                        {isCreator && (
-                          <>
-                            <Tooltip title="Edit this request">
-                              <IconButton color="info" onClick={() => handleEdit(req)}>
-                                <Edit />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete this request">
-                              <IconButton color="error" onClick={() => handleDelete(req.id)}>
-                                <Delete />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                  <div className="flex gap-2">
+                    {!isCreator && (
+                      <button
+                        onClick={() => handleAccept(req.id)}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Apply
+                      </button>
+                    )}
+                    {isCreator && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(req)}
+                          className="p-2 text-indigo-400 hover:bg-slate-700 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(req.id)}
+                          className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               );
             })
           )}
-        </Grid>
+        </div>
       )}
 
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-        <DialogTitle>{editingId ? 'Update Request' : 'Create Request'}</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Title"
-            fullWidth
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            sx={{ mt: 2 }}
-          />
-          <TextField
-            label="Description"
-            fullWidth
-            multiline
-            minRows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateOrUpdate}>
-            {editingId ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+      {/* Modal Dialog */}
+      {open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold text-white mb-4">
+              {editingId ? 'Update Request' : 'Create Request'}
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter title..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  placeholder="Enter description..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleClose}
+                className="flex-1 px-4 py-2 bg-slate-700 text-slate-300 font-medium rounded-lg hover:bg-slate-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateOrUpdate}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                {editingId ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
