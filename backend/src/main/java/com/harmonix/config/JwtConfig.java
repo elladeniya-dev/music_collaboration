@@ -19,3 +19,4 @@ public class JwtConfig {
         JwtUtils.initialize(jwtSecret, jwtExpiration);
     }
 }
+

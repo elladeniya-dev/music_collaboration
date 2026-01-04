@@ -30,11 +30,12 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Environment variables
+# Environment variables (NEVER commit these)
 .env
 .env.local
-application.properties
-application.yml
+.env.production
+
+# Keep application.properties but ensure no secrets are in it
 
 # Eclipse
 .settings/

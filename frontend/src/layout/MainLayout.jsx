@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material';
 import { Work, Group, Chat, PostAdd } from '@mui/icons-material';
 import Sidebar from '../components/Sidebar';
@@ -7,8 +7,15 @@ import { useUser } from '../context/UserContext';
 
 const MainLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { user } = useUser();
+  const { user, loadingUser } = useUser();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loadingUser && !user) {
+      navigate('/');
+    }
+  }, [user, loadingUser, navigate]);
 
   const toggleSidebar = () => {
     setIsCollapsed(prev => !prev);
@@ -16,6 +23,18 @@ const MainLayout = () => {
 
   // Check if current route is a chat page
   const isChatPage = location.pathname.startsWith('/chat');
+
+  if (loadingUser) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Typography>Loading...</Typography>
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#FAF2FF' }}>

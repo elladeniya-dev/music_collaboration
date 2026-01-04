@@ -40,4 +40,12 @@ public class JwtUtils {
                 .getBody()
                 .getSubject(); // returns email
     }
+    public static String validateAndGetEmail(String token) {
+        try {
+            return validateToken(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null; // invalid or expired token
+        }
+    }
+
 }

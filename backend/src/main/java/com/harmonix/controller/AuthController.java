@@ -1,18 +1,16 @@
 package com.harmonix.controller;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 import com.harmonix.model.User;
 import com.harmonix.repository.UserRepository;
 import com.harmonix.security.AuthHelper;
 import com.harmonix.security.JwtUtils;
-import org.springframework.beans.factory.annotation.Value;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
+import java.io.IOException;
 import java.util.Optional;
 
 @RestController
@@ -21,30 +19,24 @@ import java.util.Optional;
 public class AuthController {
 
     private final UserRepository userRepo;
-    private final String clientId;
 
-    public AuthController(UserRepository userRepo,
-                          @Value("${google.client.id}") String clientId) {
+    public AuthController(UserRepository userRepo) {
         this.userRepo = userRepo;
-        this.clientId = clientId;
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<User> login(@RequestBody String token) throws Exception {
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                new NetHttpTransport(), GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singletonList(clientId))
-                .build();
-
-        GoogleIdToken idToken = verifier.verify(token);
-        if (idToken == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+    @GetMapping("/login/success")
+    public void loginSuccess(
+            @AuthenticationPrincipal OAuth2User principal,
+            HttpServletResponse response
+    ) throws IOException {
+        if (principal == null) {
+            response.sendRedirect("http://localhost:5173?error=auth_failed");
+            return;
         }
 
-        GoogleIdToken.Payload payload = idToken.getPayload();
-        String email = payload.getEmail();
-        String name = (String) payload.get("name");
-        String picture = (String) payload.get("picture");
+        String email = principal.getAttribute("email");
+        String name = principal.getAttribute("name");
+        String picture = principal.getAttribute("picture");
 
         Optional<User> existing = userRepo.findByEmail(email);
         User user = existing.orElseGet(() ->
@@ -52,20 +44,16 @@ public class AuthController {
 
         String jwt = JwtUtils.generateToken(email);
 
-        String cookieValue = ResponseCookie.from("token", jwt)
+        ResponseCookie cookie = ResponseCookie.from("token", jwt)
                 .httpOnly(true)
                 .secure(false)
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(3600)
-                .build()
-                .toString();
+                .build();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.SET_COOKIE, cookieValue);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        return new ResponseEntity<>(user, headers, HttpStatus.OK);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        response.sendRedirect("http://localhost:5173/job");
     }
 
     @GetMapping("/me")
