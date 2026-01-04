@@ -1,6 +1,6 @@
 package com.harmonix.config;
 
-import com.harmonix.security.JwtUtils;
+import com.harmonix.util.JwtUtil;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +16,7 @@ public class JwtConfig {
 
     @PostConstruct
     public void init() {
-        JwtUtils.initialize(jwtSecret, jwtExpiration);
+        JwtUtil.initialize(jwtSecret, jwtExpiration);
     }
 }
 

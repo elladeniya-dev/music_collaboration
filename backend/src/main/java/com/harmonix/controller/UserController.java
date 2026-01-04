@@ -1,64 +1,73 @@
 package com.harmonix.controller;
 
-import com.harmonix.model.User;
+import com.harmonix.constant.AppConstants;
+import com.harmonix.dto.request.UserTypeUpdateRequest;
+import com.harmonix.dto.response.ApiResponse;
+import com.harmonix.dto.response.UserResponse;
+import com.harmonix.entity.User;
+import com.harmonix.exception.ResourceNotFoundException;
+import com.harmonix.mapper.UserMapper;
 import com.harmonix.repository.UserRepository;
-import com.harmonix.security.AuthHelper;
+import com.harmonix.util.AuthUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping(AppConstants.USERS_PATH)
 @CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
+@RequiredArgsConstructor
 public class UserController {
 
-    private final UserRepository repo;
-
-    public UserController(UserRepository repo) {
-        this.repo = repo;
-    }
-
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
     @GetMapping("/{email}")
-    public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
-        Optional<User> user = repo.findByEmail(email);
-        return user.<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(404).body("User not found"));
+    public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(@PathVariable String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        
+        UserResponse userResponse = userMapper.toResponse(user);
+        return ResponseEntity.ok(ApiResponse.success(userResponse));
     }
 
-
     @PutMapping("/type")
-    public ResponseEntity<?> updateUserType(
+    public ResponseEntity<ApiResponse<String>> updateUserType(
             HttpServletRequest request,
-            @RequestParam String userType) {
+            @Valid @RequestBody UserTypeUpdateRequest updateRequest) {
 
-        try {
-            User user = AuthHelper.requireUser(request, repo);
-            user.setUserType(userType);
-            repo.save(user);
-            return ResponseEntity.ok("User type updated to: " + userType);
-        } catch (Exception e) {
-            return ResponseEntity.status(401).body("Unauthorized: " + e.getMessage());
-        }
+        User user = AuthUtil.requireUser(request, userRepository);
+        user.setUserType(updateRequest.getUserType());
+        userRepository.save(user);
+        
+        return ResponseEntity.ok(
+                ApiResponse.success("User type updated to: " + updateRequest.getUserType(), null)
+        );
     }
 
     @GetMapping("/bulk")
-    public ResponseEntity<?> getUsersByIds(@RequestParam("ids") List<String> ids) {
-        List<User> users = repo.findAllById(ids);
-        return ResponseEntity.ok(users);
+    public ResponseEntity<ApiResponse<List<UserResponse>>> getUsersByIds(
+            @RequestParam("ids") List<String> ids) {
+        
+        List<User> users = userRepository.findAllById(ids);
+        List<UserResponse> userResponses = users.stream()
+                .map(userMapper::toResponse)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(ApiResponse.success(userResponses));
     }
 
     @GetMapping("/by-email/{email}")
-    public ResponseEntity<?> fetchUserByEmail(@PathVariable String email) {
-        Optional<User> user = repo.findByEmail(email);
-        return user.<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(404).body("User not found"));
+    public ResponseEntity<ApiResponse<UserResponse>> fetchUserByEmail(@PathVariable String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        
+        UserResponse userResponse = userMapper.toResponse(user);
+        return ResponseEntity.ok(ApiResponse.success(userResponse));
     }
-
-
-
-
 }

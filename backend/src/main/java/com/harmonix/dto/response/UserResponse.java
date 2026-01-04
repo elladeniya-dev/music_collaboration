@@ -1,0 +1,19 @@
+package com.harmonix.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserResponse {
+    
+    private String id;
+    private String email;
+    private String name;
+    private String profileImage;
+    private String userType;
+}

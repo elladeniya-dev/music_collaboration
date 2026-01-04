@@ -1,51 +1,42 @@
 package com.harmonix.controller;
 
-import com.cloudinary.Cloudinary;
-import com.cloudinary.utils.ObjectUtils;
-import com.harmonix.model.JobPost;
-import com.harmonix.model.User;
+import com.harmonix.constant.AppConstants;
+import com.harmonix.dto.request.JobPostCreateRequest;
+import com.harmonix.dto.request.JobPostUpdateRequest;
+import com.harmonix.dto.response.ApiResponse;
+import com.harmonix.dto.response.JobPostResponse;
+import com.harmonix.entity.JobPost;
+import com.harmonix.entity.User;
+import com.harmonix.exception.BadRequestException;
+import com.harmonix.exception.ResourceNotFoundException;
 import com.harmonix.repository.JobPostRepository;
 import com.harmonix.repository.UserRepository;
-import com.harmonix.security.AuthHelper;
+import com.harmonix.service.CloudinaryService;
 import com.harmonix.service.JobPostService;
+import com.harmonix.util.AuthUtil;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Value;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/api/job-post")
+@RequestMapping(AppConstants.JOB_POSTS_PATH)
 @CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
+@RequiredArgsConstructor
 public class JobPostController {
 
-    private final JobPostService service;
-    private final UserRepository userRepo;
-    private final JobPostRepository repo;
-    private final Cloudinary cloudinary;
-
-    public JobPostController(JobPostService service,
-                             UserRepository userRepo,
-                             JobPostRepository repo,
-                             @Value("${cloudinary.cloud_name}") String cloudName,
-                             @Value("${cloudinary.api_key}") String apiKey,
-                             @Value("${cloudinary.api_secret}") String apiSecret) {
-        this.service = service;
-        this.userRepo = userRepo;
-        this.repo = repo;
-        this.cloudinary = new Cloudinary(ObjectUtils.asMap(
-                "cloud_name", cloudName,
-                "api_key", apiKey,
-                "api_secret", apiSecret,
-                "secure", true
-        ));
-    }
+    private final JobPostService jobPostService;
+    private final UserRepository userRepository;
+    private final JobPostRepository jobPostRepository;
+    private final CloudinaryService cloudinaryService;
 
     @PostMapping(consumes = {"multipart/form-data"})
-    public ResponseEntity<?> createJob(
+    public ResponseEntity<ApiResponse<JobPostResponse>> createJobPost(
             HttpServletRequest request,
             @RequestPart("title") String title,
             @RequestPart("description") String description,
@@ -54,40 +45,37 @@ public class JobPostController {
             @RequestPart("availability") String availability,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
-        try {
-            User user = AuthHelper.requireUser(request, userRepo);
+        User user = AuthUtil.requireUser(request, userRepository);
 
-            String imageUrl = null;
-            if (image != null && !image.isEmpty()) {
-                Map<?, ?> uploadResult = cloudinary.uploader()
-                        .upload(image.getBytes(), ObjectUtils.emptyMap());
-                imageUrl = (String) uploadResult.get("secure_url");
-            }
-
-            JobPost post = service.createJobWithExtras(
-                    user.getId(), title, description, skillsNeeded,
-                    collaborationType, availability, user.getEmail(), imageUrl
-            );
-
-            return ResponseEntity.ok(post);
-
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error creating job post: " + e.getMessage());
+        String imageUrl = null;
+        if (image != null && !image.isEmpty()) {
+            imageUrl = cloudinaryService.uploadImage(image);
         }
+
+        JobPostCreateRequest createRequest = new JobPostCreateRequest(
+                title, description, skillsNeeded, collaborationType,
+                availability, user.getEmail(), imageUrl
+        );
+
+        JobPostResponse response = jobPostService.createJobPost(user.getId(), createRequest);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Job post created successfully", response));
     }
 
     @GetMapping
-    public ResponseEntity<List<JobPost>> getAllJobs() {
-        try {
-            List<JobPost> jobs = service.getAllJobs();
-            return ResponseEntity.ok(jobs);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(null);
-        }
+    public ResponseEntity<ApiResponse<List<JobPostResponse>>> getAllJobPosts() {
+        List<JobPostResponse> jobPosts = jobPostService.getAllJobPosts();
+        return ResponseEntity.ok(ApiResponse.success(jobPosts));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<JobPostResponse>> getJobPostById(@PathVariable String id) {
+        JobPostResponse jobPost = jobPostService.getJobPostById(id);
+        return ResponseEntity.ok(ApiResponse.success(jobPost));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateJob(
+    public ResponseEntity<ApiResponse<JobPostResponse>> updateJobPost(
             HttpServletRequest request,
             @PathVariable("id") String id,
             @RequestPart("title") String title,
@@ -97,63 +85,44 @@ public class JobPostController {
             @RequestPart("availability") String availability,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
-        try {
-            User user = AuthHelper.requireUser(request, userRepo);
+        User user = AuthUtil.requireUser(request, userRepository);
 
-            JobPost existingJob = repo.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Job not found with id: " + id));
+        JobPost existingJob = jobPostRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("JobPost", "id", id));
 
-            if (!existingJob.getUserId().equals(user.getId())) {
-                return ResponseEntity.status(403).body("You are not authorized to update this job post");
-            }
-
-            existingJob.setTitle(title);
-            existingJob.setDescription(description);
-            existingJob.setSkillsNeeded(skillsNeeded);
-            existingJob.setCollaborationType(collaborationType);
-            existingJob.setAvailability(availability);
-
-            if (image != null && !image.isEmpty()) {
-                Map<?, ?> uploadResult = cloudinary.uploader().upload(image.getBytes(), ObjectUtils.emptyMap());
-                existingJob.setImageUrl((String) uploadResult.get("secure_url"));
-            }
-
-            repo.save(existingJob);
-
-            return ResponseEntity.ok(existingJob);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error updating job post: " + e.getMessage());
+        if (!existingJob.getUserId().equals(user.getId())) {
+            throw new BadRequestException("You are not authorized to update this job post");
         }
+
+        String imageUrl = existingJob.getImageUrl();
+        if (image != null && !image.isEmpty()) {
+            imageUrl = cloudinaryService.uploadImage(image);
+        }
+
+        JobPostUpdateRequest updateRequest = new JobPostUpdateRequest(
+                title, description, skillsNeeded, collaborationType,
+                availability, user.getEmail(), imageUrl
+        );
+
+        JobPostResponse response = jobPostService.updateJobPost(id, updateRequest);
+        return ResponseEntity.ok(ApiResponse.success("Job post updated successfully", response));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteJob(
+    public ResponseEntity<ApiResponse<String>> deleteJobPost(
             HttpServletRequest request,
             @PathVariable("id") String id
     ) {
-        try {
-            User user = AuthHelper.requireUser(request, userRepo);
+        User user = AuthUtil.requireUser(request, userRepository);
 
-            JobPost jobPost = repo.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Job not found with id: " + id));
+        JobPost jobPost = jobPostRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("JobPost", "id", id));
 
-            if (!jobPost.getUserId().equals(user.getId())) {
-                return ResponseEntity.status(403).body("You are not authorized to delete this job post");
-            }
-
-            repo.deleteById(id);
-            return ResponseEntity.ok("Job post deleted successfully");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error deleting job post: " + e.getMessage());
+        if (!jobPost.getUserId().equals(user.getId())) {
+            throw new BadRequestException("You are not authorized to delete this job post");
         }
+
+        jobPostService.deleteJobPost(id);
+        return ResponseEntity.ok(ApiResponse.success("Job post deleted successfully", null));
     }
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getJobById(@PathVariable String id) {
-        return repo.findById(id)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(404).body("Job not found"));
-    }
-
-
-
 }
