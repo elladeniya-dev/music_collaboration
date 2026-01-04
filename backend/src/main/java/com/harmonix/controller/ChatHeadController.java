@@ -16,7 +16,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping(AppConstants.CHAT_HEADS_PATH)
-@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 @RequiredArgsConstructor
 public class ChatHeadController {
 

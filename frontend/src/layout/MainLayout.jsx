@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useUser } from '../context/UserContext';
@@ -8,10 +8,13 @@ const MainLayout = () => {
   const { user, loadingUser } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
-    if (!loadingUser && !user) {
-      navigate('/');
+    // Only redirect once if user is not authenticated
+    if (!loadingUser && !user && !hasRedirected.current) {
+      hasRedirected.current = true;
+      navigate('/', { replace: true });
     }
   }, [user, loadingUser, navigate]);
 

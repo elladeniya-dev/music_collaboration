@@ -17,6 +17,7 @@ public final class CookieUtil {
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(AppConstants.TOKEN_MAX_AGE_SECONDS)
+                .domain("localhost")  // Explicitly set domain for localhost
                 .build();
         
         return cookie.toString();
@@ -26,6 +27,7 @@ public final class CookieUtil {
         ResponseCookie cookie = ResponseCookie.from(AppConstants.TOKEN_COOKIE_NAME, "")
                 .httpOnly(true)
                 .path("/")
+                .domain("localhost")  // Explicitly set domain for localhost
                 .maxAge(0)
                 .build();
         

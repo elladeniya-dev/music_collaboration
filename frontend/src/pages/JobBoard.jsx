@@ -13,7 +13,9 @@ const JobBoard = () => {
   useEffect(() => {
     jobPostService.getAllJobPosts()
       .then((data) => {
-        setJobs(data);
+        // Handle both array and wrapped response
+        const jobList = Array.isArray(data) ? data : (data?.content || data?.data || []);
+        setJobs(jobList);
         setLoading(false);
       })
       .catch((error) => {

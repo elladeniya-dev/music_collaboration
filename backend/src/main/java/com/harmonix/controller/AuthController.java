@@ -10,6 +10,7 @@ import com.harmonix.util.AuthUtil;
 import com.harmonix.util.CookieUtil;
 import com.harmonix.util.JwtUtil;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -21,46 +22,13 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping(AppConstants.AUTH_PATH)
-@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     
-    @Value("${app.frontend.url:http://localhost:5173}")
-    private String frontendUrl;
-
-    @GetMapping("/login/success")
-    public void loginSuccess(
-            @AuthenticationPrincipal OAuth2User principal,
-            HttpServletResponse response
-    ) throws IOException {
-        if (principal == null) {
-            response.sendRedirect(frontendUrl + "?error=auth_failed");
-            return;
-        }
-
-        String email = principal.getAttribute("email");
-        String name = principal.getAttribute("name");
-        String picture = principal.getAttribute("picture");
-
-        User user = userRepository.findByEmail(email)
-                .orElseGet(() -> userRepository.save(
-                        User.builder()
-                                .email(email)
-                                .name(name)
-                                .profileImage(picture)
-                                .userType(AppConstants.DEFAULT_USER_TYPE)
-                                .build()
-                ));
-
-        String jwt = JwtUtil.generateToken(email);
-        String cookie = CookieUtil.createTokenCookie(jwt, false);
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie);
-        response.sendRedirect(frontendUrl + "/oauth/callback");
-    }
+    // OAuth2 success handling is now done by OAuth2LoginSuccessHandler
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(
@@ -78,5 +46,22 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie)
                 .body(ApiResponse.success("Logged out successfully", null));
+    }
+
+    @GetMapping("/debug/cookies")
+    public ResponseEntity<ApiResponse<String>> debugCookies(HttpServletRequest request) {
+        StringBuilder cookieInfo = new StringBuilder();
+        if (request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                cookieInfo.append(cookie.getName()).append("=").append(cookie.getValue()).append("; ");
+            }
+        } else {
+            cookieInfo.append("No cookies received");
+        }
+        
+        String message = "Cookies received: " + cookieInfo.toString();
+        System.out.println("🔍 DEBUG: " + message);
+        
+        return ResponseEntity.ok(ApiResponse.success(message));
     }
 }

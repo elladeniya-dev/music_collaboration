@@ -19,7 +19,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping(AppConstants.MESSAGES_PATH)
-@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 @RequiredArgsConstructor
 public class MessageController {
 

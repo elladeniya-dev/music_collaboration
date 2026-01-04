@@ -1,16 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services';
 import { useUser } from '../context/UserContext';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, setUser, loadingUser } = useUser();
+  const { user, loadingUser } = useUser();
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
-    // If user is already logged in, redirect to job board
-    if (!loadingUser && user) {
-      navigate('/job');
+    // If user is already logged in, redirect to job board (only once)
+    if (!loadingUser && user && !hasRedirected.current) {
+      hasRedirected.current = true;
+      navigate('/job', { replace: true });
     }
   }, [user, loadingUser, navigate]);
 

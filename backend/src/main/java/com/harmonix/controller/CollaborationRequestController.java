@@ -25,7 +25,6 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping(AppConstants.COLLABORATION_REQUESTS_PATH)
 @RequiredArgsConstructor
-@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class CollaborationRequestController {
 
     private final CollaborationRequestService collaborationRequestService;

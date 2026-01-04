@@ -10,14 +10,17 @@ const axiosInstance = axios.create({
   },
 });
 
-// Request interceptor for adding auth tokens or logging
+// Request interceptor for debugging and logging
 axiosInstance.interceptors.request.use(
   (config) => {
-    // You can add authorization headers here if needed
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Log the request for debugging (comment out in production)
+    if (config.url && !config.url.includes('unread/count')) {
+      console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    }
+    
+    // Ensure credentials are sent with all requests
+    config.withCredentials = true;
+    
     return config;
   },
   (error) => {
@@ -27,15 +30,24 @@ axiosInstance.interceptors.request.use(
 
 // Response interceptor for handling errors globally
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Only redirect if not already on login page or oauth callback
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/' && currentPath !== '/oauth/callback') {
-        window.location.href = '/';
-      }
+  (response) => {
+    // Log successful responses for debugging (comment out in production)
+    if (response.config.url && !response.config.url.includes('unread/count')) {
+      console.log(`📥 API Response: ${response.status} ${response.config.url}`);
     }
+    return response;
+  },
+  (error) => {
+    // Log errors for debugging
+    const url = error.config?.url;
+    const status = error.response?.status;
+    
+    if (url && !url.includes('unread/count')) {
+      console.log(`⚠️ API Error: ${status} ${url}`);
+    }
+    
+    // Don't auto-redirect on 401 - let components handle auth errors
+    // This prevents infinite redirect loops on initial page load
     return Promise.reject(error);
   }
 );

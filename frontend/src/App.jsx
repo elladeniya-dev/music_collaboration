@@ -8,6 +8,8 @@ import Login from './pages/Login';
 import OAuthCallback from './pages/OAuthCallback';
 import MainLayout from './layout/MainLayout';
 import EditJob from "./pages/EditJob"; // ✅ merged component
+import UserProfile from './pages/UserProfile';
+import Applications from './pages/Applications';
 
 function App() {
   return (
@@ -26,6 +28,9 @@ function App() {
             <Route path="/requests" element={<CollabRequests />} />
             <Route path="/chat" element={<ChatInterface />} />
             <Route path="/chat/:id" element={<ChatInterface />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/profile/:userId" element={<UserProfile />} />
+            <Route path="/applications" element={<Applications />} />
           </Route>
         </Routes>
       </BrowserRouter>

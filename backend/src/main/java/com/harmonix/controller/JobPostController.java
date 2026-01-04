@@ -1,22 +1,30 @@
 package com.harmonix.controller;
 
 import com.harmonix.constant.AppConstants;
+import com.harmonix.constant.JobType;
+import com.harmonix.constant.JobVisibility;
 import com.harmonix.dto.request.JobPostCreateRequest;
 import com.harmonix.dto.request.JobPostUpdateRequest;
 import com.harmonix.dto.response.ApiResponse;
 import com.harmonix.dto.response.JobPostResponse;
+import com.harmonix.dto.response.PagedResponse;
 import com.harmonix.entity.JobPost;
 import com.harmonix.entity.User;
 import com.harmonix.exception.BadRequestException;
 import com.harmonix.exception.ResourceNotFoundException;
 import com.harmonix.repository.JobPostRepository;
 import com.harmonix.repository.UserRepository;
+import com.harmonix.security.CurrentUser;
+import com.harmonix.security.UserPrincipal;
 import com.harmonix.service.CloudinaryService;
 import com.harmonix.service.JobPostService;
 import com.harmonix.util.AuthUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +34,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping(AppConstants.JOB_POSTS_PATH)
-@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 @RequiredArgsConstructor
 public class JobPostController {
 
@@ -62,9 +69,51 @@ public class JobPostController {
                 .body(ApiResponse.success("Job post created successfully", response));
     }
 
+    /**
+     * Get all job posts (paginated)
+     */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<JobPostResponse>>> getAllJobPosts() {
-        List<JobPostResponse> jobPosts = jobPostService.getAllJobPosts();
+    public ResponseEntity<ApiResponse<PagedResponse<JobPostResponse>>> getAllJobPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        
+        Sort.Direction direction = sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        
+        PagedResponse<JobPostResponse> jobPosts = jobPostService.getAllJobPosts(pageable);
+        return ResponseEntity.ok(ApiResponse.success(jobPosts));
+    }
+    
+    /**
+     * Get all job posts (non-paginated, for backward compatibility)
+     */
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<JobPostResponse>>> getAllJobPostsList() {
+        List<JobPostResponse> jobPosts = jobPostService.getAllJobPostsList();
+        return ResponseEntity.ok(ApiResponse.success(jobPosts));
+    }
+    
+    /**
+     * Search job posts with filters
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PagedResponse<JobPostResponse>>> searchJobPosts(
+            @RequestParam(required = false) List<String> genres,
+            @RequestParam(required = false) List<String> instruments,
+            @RequestParam(required = false) List<JobType> jobTypes,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Boolean isPaid,
+            @RequestParam(required = false) JobVisibility visibility,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        
+        PagedResponse<JobPostResponse> jobPosts = jobPostService.searchJobPosts(
+                genres, instruments, jobTypes, location, isPaid, visibility, pageable);
+        
         return ResponseEntity.ok(ApiResponse.success(jobPosts));
     }
 
@@ -76,7 +125,7 @@ public class JobPostController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<JobPostResponse>> updateJobPost(
-            HttpServletRequest request,
+            @CurrentUser UserPrincipal currentUser,
             @PathVariable("id") String id,
             @RequestPart("title") String title,
             @RequestPart("description") String description,
@@ -85,12 +134,10 @@ public class JobPostController {
             @RequestPart("availability") String availability,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
-        User user = AuthUtil.requireUser(request, userRepository);
-
         JobPost existingJob = jobPostRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("JobPost", "id", id));
 
-        if (!existingJob.getUserId().equals(user.getId())) {
+        if (!existingJob.getUserId().equals(currentUser.getId())) {
             throw new BadRequestException("You are not authorized to update this job post");
         }
 
@@ -101,28 +148,38 @@ public class JobPostController {
 
         JobPostUpdateRequest updateRequest = new JobPostUpdateRequest(
                 title, description, skillsNeeded, collaborationType,
-                availability, user.getEmail(), imageUrl
+                availability, currentUser.getEmail(), imageUrl
         );
 
-        JobPostResponse response = jobPostService.updateJobPost(id, updateRequest);
+        JobPostResponse response = jobPostService.updateJobPost(id, currentUser.getId(), updateRequest);
         return ResponseEntity.ok(ApiResponse.success("Job post updated successfully", response));
+    }
+    
+    /**
+     * Close a job post
+     */
+    @PutMapping("/{id}/close")
+    public ResponseEntity<ApiResponse<JobPostResponse>> closeJobPost(
+            @CurrentUser UserPrincipal currentUser,
+            @PathVariable String id) {
+        
+        JobPostResponse response = jobPostService.closeJobPost(id, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success("Job post closed successfully", response));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> deleteJobPost(
-            HttpServletRequest request,
+            @CurrentUser UserPrincipal currentUser,
             @PathVariable("id") String id
     ) {
-        User user = AuthUtil.requireUser(request, userRepository);
-
         JobPost jobPost = jobPostRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("JobPost", "id", id));
 
-        if (!jobPost.getUserId().equals(user.getId())) {
+        if (!jobPost.getUserId().equals(currentUser.getId())) {
             throw new BadRequestException("You are not authorized to delete this job post");
         }
 
-        jobPostService.deleteJobPost(id);
+        jobPostService.deleteJobPost(id, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success("Job post deleted successfully", null));
     }
 }

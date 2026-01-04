@@ -1,13 +1,19 @@
 package com.harmonix.controller;
 
 import com.harmonix.constant.AppConstants;
+import com.harmonix.constant.UserRole;
+import com.harmonix.dto.request.UpdateUserProfileRequest;
 import com.harmonix.dto.request.UserTypeUpdateRequest;
 import com.harmonix.dto.response.ApiResponse;
+import com.harmonix.dto.response.UserProfileResponse;
 import com.harmonix.dto.response.UserResponse;
 import com.harmonix.entity.User;
 import com.harmonix.exception.ResourceNotFoundException;
 import com.harmonix.mapper.UserMapper;
 import com.harmonix.repository.UserRepository;
+import com.harmonix.security.CurrentUser;
+import com.harmonix.security.UserPrincipal;
+import com.harmonix.service.UserService;
 import com.harmonix.util.AuthUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -20,12 +26,12 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(AppConstants.USERS_PATH)
-@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final UserService userService;
 
     @GetMapping("/{email}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(@PathVariable String email) {
@@ -34,6 +40,75 @@ public class UserController {
         
         UserResponse userResponse = userMapper.toResponse(user);
         return ResponseEntity.ok(ApiResponse.success(userResponse));
+    }
+    
+    /**
+     * Get user profile (new rich profile)
+     */
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(@PathVariable String userId) {
+        UserProfileResponse profile = userService.getProfile(userId);
+        return ResponseEntity.ok(ApiResponse.success(profile));
+    }
+    
+    /**
+     * Get current user's profile
+     */
+    @GetMapping("/profile/me")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile(
+            @CurrentUser UserPrincipal currentUser) {
+        UserProfileResponse profile = userService.getProfile(currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(profile));
+    }
+    
+    /**
+     * Update current user's profile
+     */
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> updateProfile(
+            @CurrentUser UserPrincipal currentUser,
+            @Valid @RequestBody UpdateUserProfileRequest request) {
+        
+        UserProfileResponse profile = userService.updateProfile(currentUser.getId(), request);
+        return ResponseEntity.ok(ApiResponse.success(profile));
+    }
+    
+    /**
+     * Update user role (Admin only)
+     */
+    @PutMapping("/{userId}/role")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> updateUserRole(
+            @CurrentUser UserPrincipal currentUser,
+            @PathVariable String userId,
+            @RequestParam UserRole role) {
+        
+        UserProfileResponse profile = userService.updateRole(userId, role, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(profile));
+    }
+    
+    /**
+     * Suspend user (Admin only)
+     */
+    @PutMapping("/{userId}/suspend")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> suspendUser(
+            @CurrentUser UserPrincipal currentUser,
+            @PathVariable String userId,
+            @RequestParam String reason) {
+        
+        UserProfileResponse profile = userService.suspendUser(userId, reason, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(profile));
+    }
+    
+    /**
+     * Activate user (Admin only)
+     */
+    @PutMapping("/{userId}/activate")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> activateUser(
+            @CurrentUser UserPrincipal currentUser,
+            @PathVariable String userId) {
+        
+        UserProfileResponse profile = userService.activateUser(userId, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(profile));
     }
 
     @PutMapping("/type")

@@ -25,18 +25,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // Skip JWT processing if already authenticated (e.g., via OAuth2)
-        if (SecurityContextHolder.getContext().getAuthentication() != null &&
-            SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+        System.out.println("🔒 JwtAuthFilter: Processing request to " + request.getRequestURI());
 
+        // Always process JWT cookie if present (don't skip even if OAuth2 authenticated)
+        // This ensures controllers can extract user from JWT via AuthUtil.requireUser()
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if (AppConstants.TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                    System.out.println("🍪 Found JWT cookie: " + cookie.getValue().substring(0, Math.min(50, cookie.getValue().length())) + "...");
                     String email = JwtUtil.validateAndGetEmail(cookie.getValue());
                     if (email != null) {
+                        System.out.println("✅ JWT valid for email: " + email);
                         UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(
                                         email, null, null
@@ -47,9 +46,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         );
                         SecurityContextHolder.getContext()
                                 .setAuthentication(auth);
+                    } else {
+                        System.out.println("❌ JWT validation failed");
                     }
                 }
             }
+        } else {
+            System.out.println("⚠️ No cookies found in request");
         }
 
         filterChain.doFilter(request, response);

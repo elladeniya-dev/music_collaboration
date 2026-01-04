@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 import { UserProvider } from './context/UserContext';
+import { debugCookies } from './utils/cookieDebug';
+
+// Make debug utilities available globally for testing
+window.debugCookies = debugCookies;
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

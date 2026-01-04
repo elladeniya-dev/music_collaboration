@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { authService } from '../services';
@@ -6,22 +6,34 @@ import { authService } from '../services';
 const OAuthCallback = () => {
   const navigate = useNavigate();
   const { setUser } = useUser();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    // After OAuth redirect, fetch the current user
-    const fetchUser = async () => {
-      try {
-        const userData = await authService.getCurrentUser();
-        setUser(userData);
-        navigate('/job', { replace: true });
-      } catch (error) {
-        console.error('Failed to fetch user after OAuth:', error);
-        navigate('/', { replace: true });
-      }
-    };
+    // Start processing immediately, don't wait for UserContext
+    if (!isProcessing) {
+      setIsProcessing(true);
+      
+      const fetchUser = async () => {
+        try {
+          console.log('OAuthCallback: Fetching user data...');
+          const userData = await authService.getCurrentUser();
+          console.log('OAuthCallback: User data received:', userData);
+          setUser(userData);
+          // Use a small delay to ensure state updates before navigation
+          setTimeout(() => {
+            navigate('/job', { replace: true });
+          }, 100);
+        } catch (error) {
+          console.error('OAuthCallback: Failed to fetch user:', error);
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 100);
+        }
+      };
 
-    fetchUser();
-  }, [navigate, setUser]);
+      fetchUser();
+    }
+  }, [isProcessing, setUser, navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
