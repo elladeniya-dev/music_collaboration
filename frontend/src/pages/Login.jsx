@@ -1,10 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../services';
+import { useUser } from '../context/UserContext';
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { user, setUser, loadingUser } = useUser();
+
+  useEffect(() => {
+    // If user is already logged in, redirect to job board
+    if (!loadingUser && user) {
+      navigate('/job');
+    }
+  }, [user, loadingUser, navigate]);
+
   const handleGoogleLogin = () => {
     // Redirect to Spring Boot OAuth2 endpoint
-    window.location.href = 'http://localhost:8080/oauth2/authorization/google';
+    authService.initiateGoogleLogin();
   };
+
+  if (loadingUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600">

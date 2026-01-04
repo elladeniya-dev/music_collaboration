@@ -5,6 +5,7 @@ import JobDetails from './pages/JobDetails';
 import CollabRequests from './pages/CollabRequests';
 import ChatInterface from './pages/ChatInterface'; // ✅ merged component
 import Login from './pages/Login';
+import OAuthCallback from './pages/OAuthCallback';
 import MainLayout from './layout/MainLayout';
 import EditJob from "./pages/EditJob"; // ✅ merged component
 
@@ -13,8 +14,9 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <BrowserRouter>
         <Routes>
-          {/* Public Route */}
+          {/* Public Routes */}
           <Route path="/" element={<Login />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
 
           <Route element={<MainLayout />}>
             <Route path="/job" element={<JobBoard />} />

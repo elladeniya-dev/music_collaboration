@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Avatar, IconButton } from '@mui/material';
+import { Avatar, IconButton, Chip } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import axios from 'axios';
 import { useUser } from '../context/UserContext';
-import Swal from 'sweetalert2';
-
-
+import { chatService, userService } from '../services';
+import { showError, showInputDialog, showConfirmation, showSuccess, getUserId } from '../utils';
+import { useWebSocket } from '../hooks';
 
 const ChatInterface = () => {
   const { id: partnerId } = useParams();
@@ -17,9 +16,35 @@ const ChatInterface = () => {
   const [userMap, setUserMap] = useState({});
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [partnerTyping, setPartnerTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
-  const getChatId = () => [user.id || user._id, partnerId].sort().join('_');
+  const getChatId = () => [getUserId(user), partnerId].sort().join('_');
+
+  // WebSocket hook for real-time messaging
+  const handleMessageReceived = useCallback((newMessage) => {
+    console.log('📨 Received WebSocket message:', newMessage);
+    setMessages((prev) => {
+      // Prevent duplicate messages
+      if (prev.some(msg => msg.id === newMessage.id)) {
+        return prev;
+      }
+      const updated = [...prev, newMessage];
+      return updated.sort((a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+    });
+    scrollToBottom();
+  }, []);
+
+  const { connected, sendMessage: sendWsMessage, sendTypingIndicator } = useWebSocket(
+    partnerId ? getChatId() : null,
+    getUserId(user),
+    handleMessageReceived,
+    !!partnerId && !!user
+  );
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -28,38 +53,36 @@ const ChatInterface = () => {
   };
 
   useEffect(() => {
-    const userId = user?.id || user?._id;
+    const userId = getUserId(user);
     if (!userId) return;
 
-    axios.get('http://localhost:8080/api/chat-heads/me', { withCredentials: true })
-      .then(async (res) => {
-        setChatHeads(res.data);
+    chatService.getChatHeads()
+      .then(async (data) => {
+        setChatHeads(data);
 
-        const partnerIds = res.data.map(chat => chat.participants.find(p => p !== userId));
+        const partnerIds = data.map(chat => chat.participants.find(p => p !== userId));
         if (!partnerIds.length) return;
 
-        const query = partnerIds.map(id => `ids=${id}`).join('&');
-        const userRes = await axios.get(`http://localhost:8080/api/users/bulk?${query}`, { withCredentials: true });
+        const users = await userService.getBulkUsers(partnerIds);
 
         const map = {};
-        userRes.data.forEach(u => { map[u._id || u.id] = u; });
+        users.forEach(u => { map[u._id || u.id] = u; });
         setUserMap(map);
-      });
+      })
+      .catch(err => console.error('Failed to fetch chat heads:', err));
   }, [user]);
 
+  // Load initial messages when chat opens
   useEffect(() => {
-    let intervalId;
-
     const fetchMessages = async () => {
       if (!user || !partnerId) return;
       try {
-        const res = await axios.get(`http://localhost:8080/api/messages/${getChatId()}`, {
-          withCredentials: true,
-        });
-        const sorted = res.data.sort((a, b) =>
+        const data = await chatService.getMessages(getChatId());
+        const sorted = data.sort((a, b) =>
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
         setMessages(sorted);
+        scrollToBottom();
       } catch (err) {
         console.error('Failed to fetch messages:', err);
       }
@@ -67,10 +90,7 @@ const ChatInterface = () => {
 
     if (user && partnerId) {
       fetchMessages();
-      intervalId = setInterval(fetchMessages, 2000);
     }
-
-    return () => clearInterval(intervalId);
   }, [user, partnerId]);
 
   useEffect(() => {
@@ -82,7 +102,7 @@ const ChatInterface = () => {
 
     const msgObj = {
       chatId: getChatId(),
-      senderId: user.id || user._id,
+      senderId: getUserId(user),
       receiverId: partnerId,
       message: message.trim(),
       type: 'text',
@@ -90,83 +110,102 @@ const ChatInterface = () => {
     };
 
     try {
-      const res = await axios.post('http://localhost:8080/api/messages', msgObj, {
-        withCredentials: true,
-      });
-      setMessages((prev) => [...prev, res.data]);
-      setMessage('');
+      // Send via WebSocket if connected, otherwise use HTTP
+      if (connected) {
+        sendWsMessage(msgObj);
+        setMessage('');
+        // Stop typing indicator
+        if (isTyping) {
+          sendTypingIndicator(false, user.name);
+          setIsTyping(false);
+        }
+      } else {
+        // Fallback to HTTP if WebSocket not connected
+        const newMessage = await chatService.sendMessage(msgObj);
+        setMessages((prev) => [...prev, newMessage]);
+        setMessage('');
+      }
       scrollToBottom();
     } catch (err) {
       console.error('Send message error:', err);
+      showError('Failed to send message');
     }
   };
 
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!connected) return;
+
+    if (!isTyping) {
+      setIsTyping(true);
+      sendTypingIndicator(true, user.name);
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Stop typing after 2 seconds of no input
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      sendTypingIndicator(false, user.name);
+    }, 2000);
+  };
+
   const startNewChat = async () => {
-    const { value: email } = await Swal.fire({
-      title: 'Start New Chat',
-      input: 'email',
-      inputLabel: 'Enter Gmail of the user',
-      inputPlaceholder: 'example@gmail.com',
-      showCancelButton: true,
-    });
+    const email = await showInputDialog(
+      'Start New Chat',
+      'Enter Gmail of the user',
+      'email',
+      'example@gmail.com'
+    );
 
     if (email) {
       try {
-        const res = await axios.get(
-          `http://localhost:8080/api/users/by-email/${encodeURIComponent(email)}`,
-          { withCredentials: true }
-        );
-        const receiver = res.data;
+        const receiver = await userService.getUserByEmail(email);
 
-        if (!receiver || !(receiver._id || receiver.id)) {
-          Swal.fire('User not found', '', 'error');
+        if (!receiver || !getUserId(receiver)) {
+          showError('User not found');
           return;
         }
 
-        const receiverId = receiver._id || receiver.id;
+        const receiverId = getUserId(receiver);
 
-        await axios.post(`http://localhost:8080/api/chat-heads/create`, null, {
-          params: { userId2: receiverId },
-          withCredentials: true,
-        });
+        await chatService.createChatHead(receiverId);
 
         navigate(`/chat/${receiverId}`);
       } catch (err) {
         console.error(err);
-        Swal.fire('Error', 'Could not create or find user.', 'error');
+        showError('Error', 'Could not create or find user.');
       }
     }
   };
 
   const handleDeleteChat = async (partnerId) => {
-    const chatId = [user.id || user._id, partnerId].sort().join('_');
+    const chatId = [getUserId(user), partnerId].sort().join('_');
 
-    const confirm = await Swal.fire({
-      title: 'Delete Chat?',
-      text: 'This will permanently delete all messages in this conversation.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, delete it!',
-    });
+    const confirmed = await showConfirmation(
+      'Delete Chat?',
+      'This will permanently delete all messages in this conversation.'
+    );
 
-    if (confirm.isConfirmed) {
+    if (confirmed) {
       try {
-        await axios.delete(`http://localhost:8080/api/messages/${chatId}`, {
-          withCredentials: true,
-        });
+        await chatService.deleteChat(chatId);
 
         setChatHeads((prev) =>
           prev.filter((chat) =>
-            chat.participants.find((p) => p !== user.id) !== partnerId
+            chat.participants.find((p) => p !== getUserId(user)) !== partnerId
           )
         );
 
         if (partnerId === partner?.id) navigate('/chat');
 
-        Swal.fire('Deleted!', 'Chat has been deleted.', 'success');
+        showSuccess('Deleted!', 'Chat has been deleted.');
       } catch (err) {
         console.error(err);
-        Swal.fire('Error', 'Failed to delete chat.', 'error');
+        showError('Error', 'Failed to delete chat.');
       }
     }
   };
@@ -174,7 +213,7 @@ const ChatInterface = () => {
   const partner = userMap[partnerId];
 
   if (loadingUser) return <div className="text-center mt-10">Loading...</div>;
-  if (!user?.id && !user?._id) return <div className="text-center mt-10 text-red-600">Login required</div>;
+  if (!getUserId(user)) return <div className="text-center mt-10 text-red-600">Login required</div>;
 
   return (
     <div className="w-full h-[calc(100vh-64px)] flex overflow-hidden">
@@ -192,7 +231,7 @@ const ChatInterface = () => {
         </div>
         <ul>
           {chatHeads.map((chat) => {
-            const uid = user.id || user._id;
+            const uid = getUserId(user);
             const pid = chat.participants.find(p => p !== uid);
             const partner = userMap[pid];
 
@@ -230,13 +269,21 @@ const ChatInterface = () => {
 
       {/* Chat Area */}
       <section className="max-w-[100%] flex-1 flex flex-col bg-gray-50">
-        <header className="h-16 px-6 flex items-center border-b border-gray-200 bg-white">
+        <header className="h-16 px-6 flex items-center justify-between border-b border-gray-200 bg-white">
           <h2 className="text-base font-bold text-gray-800">{partner?.name || 'Select a conversation'}</h2>
+          {partnerId && (
+            <Chip 
+              label={connected ? '🟢 Connected' : '🔴 Disconnected'} 
+              size="small" 
+              color={connected ? 'success' : 'default'}
+              variant="outlined"
+            />
+          )}
         </header>
 
         <main className="flex-1 overflow-y-auto px-6 py-4 space-y-3 custom-scrollbar bg-gray-50">
           {messages.map((msg, index) => {
-            const isSender = msg.senderId === (user.id || user._id);
+            const isSender = msg.senderId === getUserId(user);
             const timeStr = new Date(msg.timestamp).toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',
@@ -255,22 +302,38 @@ const ChatInterface = () => {
               </div>
             );
           })}
+          {partnerTyping && (
+            <div className="flex justify-start">
+              <div className="bg-white text-gray-600 px-5 py-3 rounded-2xl text-sm border border-gray-200">
+                <span className="italic">{partner?.name} is typing...</span>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </main>
 
-        <footer className="h-16 flex items-center px-6 border-t border-gray-200 bg-white">
+        <footer className="px-6 py-3 border-t border-gray-200 bg-white">
+          {!connected && (
+            <div className="text-xs text-amber-600 mb-2">
+              ⚠️ WebSocket disconnected. Messages will be sent via HTTP.
+            </div>
+          )}
           <div className="flex items-center w-full bg-gray-100 rounded-full px-4 py-2">
             <input
               className="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder-gray-500"
               type="text"
               placeholder="Type your message..."
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                handleTyping();
+              }}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
             />
             <button
               onClick={sendMessage}
-              className="ml-4 text-blue-600 font-bold hover:underline"
+              disabled={!message.trim()}
+              className="ml-4 text-blue-600 font-bold hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
             >
               Send
             </button>

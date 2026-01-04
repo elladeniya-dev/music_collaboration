@@ -10,7 +10,9 @@ import {
 import { DesktopDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import axios from 'axios';
+import { jobPostService } from '../services';
+import { showSuccess, showError, formatDateToISO } from '../utils';
+import { CollaborationType } from '../constants';
 
 const PostJob = () => {
   const [formData, setFormData] = useState({
@@ -57,21 +59,15 @@ const PostJob = () => {
       payload.append('description', formData.description);
       payload.append('skillsNeeded', formData.skillsNeeded);
       payload.append('collaborationType', formData.collaborationType);
-      payload.append('availability', formData.availability.toISOString().split('T')[0]);
+      payload.append('availability', formatDateToISO(formData.availability));
   
       if (formData.image) {
         payload.append('image', formData.image);
       }
   
-      const res = await axios.post('http://localhost:8080/api/job-post', payload, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      await jobPostService.createJobPost(payload);
   
-      alert('Job posted successfully!');
-      console.log(res.data);
+      showSuccess('Job posted successfully!');
   
       setFormData({
         title: '',
@@ -83,7 +79,7 @@ const PostJob = () => {
       });
     } catch (err) {
       console.error(err);
-      alert('Error posting job: ' + err.message);
+      showError('Error posting job', err.message);
     } finally {
       setSubmitting(false);
     }
@@ -136,9 +132,9 @@ const PostJob = () => {
             fullWidth
             required
           >
-            <MenuItem value="Remote">Remote</MenuItem>
-            <MenuItem value="In-Person">In-Person</MenuItem>
-            <MenuItem value="Hybrid">Hybrid</MenuItem>
+            <MenuItem value={CollaborationType.REMOTE}>{CollaborationType.REMOTE}</MenuItem>
+            <MenuItem value={CollaborationType.IN_PERSON}>{CollaborationType.IN_PERSON}</MenuItem>
+            <MenuItem value={CollaborationType.HYBRID}>{CollaborationType.HYBRID}</MenuItem>
           </TextField>
 
           <LocalizationProvider dateAdapter={AdapterDateFns}>

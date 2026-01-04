@@ -59,7 +59,7 @@ public class AuthController {
         String cookie = CookieUtil.createTokenCookie(jwt, false);
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie);
-        response.sendRedirect(frontendUrl + "/job");
+        response.sendRedirect(frontendUrl + "/oauth/callback");
     }
 
     @GetMapping("/me")

@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import JobCard from '../components/JobCard';
 import { Typography, CircularProgress, Grid, Box, Alert } from '@mui/material';
-import { useNavigate } from 'react-router-dom'; // at the top
+import { useNavigate } from 'react-router-dom';
+import { jobPostService } from '../services';
+import { showSuccess, showError } from '../utils';
 
 const JobBoard = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/job-post', {
-      withCredentials: true,
-    })
-      .then((response) => {
-        setJobs(response.data);
+    jobPostService.getAllJobPosts()
+      .then((data) => {
+        setJobs(data);
         setLoading(false);
       })
       .catch((error) => {
@@ -24,20 +24,17 @@ const JobBoard = () => {
       });
   }, []);
 
-  const handleDelete = (jobId) => {
-    axios.delete(`http://localhost:8080/api/job-post/${jobId}`, {
-      withCredentials: true,
-    })
-      .then(() => {
-        alert('Job post deleted successfully');
-        setJobs(jobs.filter(job => job.id !== jobId));
-      })
-      .catch((error) => {
-        console.error('Error deleting job:', error);
-        alert('Error deleting the job post');
-      });
+  const handleDelete = async (jobId) => {
+    try {
+      await jobPostService.deleteJobPost(jobId);
+      showSuccess('Job post deleted successfully');
+      setJobs(jobs.filter(job => job.id !== jobId));
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      showError('Error deleting the job post');
+    }
   };
-  const navigate = useNavigate(); // inside your component
+
   const handleUpdate = (job) => {
     navigate(`/job/${job.id}`);
   };

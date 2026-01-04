@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { authService } from '../services';
 
 export const UserContext = createContext();
 
@@ -8,9 +8,9 @@ export const UserProvider = ({ children }) => {
   const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/auth/me', { withCredentials: true })
-      .then((res) => {
-        setUser(res.data);
+    authService.getCurrentUser()
+      .then((userData) => {
+        setUser(userData);
         setLoadingUser(false);
       })
       .catch(() => {
