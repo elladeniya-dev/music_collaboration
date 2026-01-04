@@ -1,28 +1,35 @@
 package com.harmonix.controller;
 
-import com.harmonix.model.User;
+import com.harmonix.constant.AppConstants;
+import com.harmonix.dto.response.ApiResponse;
+import com.harmonix.dto.response.UserResponse;
+import com.harmonix.entity.User;
+import com.harmonix.mapper.UserMapper;
 import com.harmonix.repository.UserRepository;
-import com.harmonix.security.AuthHelper;
-import com.harmonix.security.JwtUtils;
+import com.harmonix.util.AuthUtil;
+import com.harmonix.util.CookieUtil;
+import com.harmonix.util.JwtUtil;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping(AppConstants.AUTH_PATH)
 @CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
+@RequiredArgsConstructor
 public class AuthController {
 
-    private final UserRepository userRepo;
-
-    public AuthController(UserRepository userRepo) {
-        this.userRepo = userRepo;
-    }
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
+    
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
 
     @GetMapping("/login/success")
     public void loginSuccess(
@@ -30,7 +37,7 @@ public class AuthController {
             HttpServletResponse response
     ) throws IOException {
         if (principal == null) {
-            response.sendRedirect("http://localhost:5173?error=auth_failed");
+            response.sendRedirect(frontendUrl + "?error=auth_failed");
             return;
         }
 
@@ -38,44 +45,38 @@ public class AuthController {
         String name = principal.getAttribute("name");
         String picture = principal.getAttribute("picture");
 
-        Optional<User> existing = userRepo.findByEmail(email);
-        User user = existing.orElseGet(() ->
-                userRepo.save(new User(null, email, name, picture, "pending")));
+        User user = userRepository.findByEmail(email)
+                .orElseGet(() -> userRepository.save(
+                        User.builder()
+                                .email(email)
+                                .name(name)
+                                .profileImage(picture)
+                                .userType(AppConstants.DEFAULT_USER_TYPE)
+                                .build()
+                ));
 
-        String jwt = JwtUtils.generateToken(email);
+        String jwt = JwtUtil.generateToken(email);
+        String cookie = CookieUtil.createTokenCookie(jwt, false);
 
-        ResponseCookie cookie = ResponseCookie.from("token", jwt)
-                .httpOnly(true)
-                .secure(false)
-                .path("/")
-                .sameSite("Lax")
-                .maxAge(3600)
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        response.sendRedirect("http://localhost:5173/job");
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie);
+        response.sendRedirect(frontendUrl + "/oauth/callback");
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getUserFromCookie(@CookieValue(name = "token", required = false) String token) {
-        try {
-            User user = AuthHelper.requireUser(token, userRepo);
-            return ResponseEntity.ok(user);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
-        }
+    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(
+            @CookieValue(name = AppConstants.TOKEN_COOKIE_NAME, required = false) String token) {
+        
+        User user = AuthUtil.requireUser(token, userRepository);
+        UserResponse userResponse = userMapper.toResponse(user);
+        return ResponseEntity.ok(ApiResponse.success(userResponse));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
-        ResponseCookie deleteCookie = ResponseCookie.from("token", "")
-                .httpOnly(true)
-                .path("/")
-                .maxAge(0)
-                .build();
-
+    public ResponseEntity<ApiResponse<String>> logout() {
+        String cookie = CookieUtil.deleteTokenCookie();
+        
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
-                .body("Logged out");
+                .header(HttpHeaders.SET_COOKIE, cookie)
+                .body(ApiResponse.success("Logged out successfully", null));
     }
 }

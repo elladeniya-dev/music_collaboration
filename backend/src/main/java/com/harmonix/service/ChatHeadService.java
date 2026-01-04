@@ -1,9 +1,11 @@
 package com.harmonix.service;
 
-import com.harmonix.model.ChatHead;
-import com.harmonix.model.Message;
+import com.harmonix.entity.ChatHead;
+import com.harmonix.entity.Message;
 import com.harmonix.repository.ChatHeadRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -13,12 +15,11 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
+@Transactional
 public class ChatHeadService {
+    
     private final ChatHeadRepository chatHeadRepository;
-
-    public ChatHeadService(ChatHeadRepository chatHeadRepository) {
-        this.chatHeadRepository = chatHeadRepository;
-    }
 
     public void deleteByChatId(String chatId) {
         chatHeadRepository.deleteById(chatId);

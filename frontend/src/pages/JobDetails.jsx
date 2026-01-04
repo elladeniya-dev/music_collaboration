@@ -11,8 +11,9 @@ import {
   Grid,
   Paper
 } from '@mui/material';
-import axios from 'axios';
 import MainLayout from '../layout/MainLayout';
+import { jobPostService } from '../services';
+import { formatDate, parseSkills } from '../utils';
 
 const JobDetails = () => {
   const { id } = useParams();
@@ -22,10 +23,8 @@ const JobDetails = () => {
   useEffect(() => {
     const fetchJob = async () => {
       try {
-        const res = await axios.get(`http://localhost:8080/api/job-post/${id}`, {
-          withCredentials: true,
-        });
-        setJob(res.data);
+        const data = await jobPostService.getJobPostById(id);
+        setJob(data);
       } catch (err) {
         console.error('Error fetching job:', err);
       } finally {
@@ -87,9 +86,11 @@ const JobDetails = () => {
               </Typography>
 
               <Box sx={{ my: 2 }}>
-                <Chip label={`Skills: ${job.skillsNeeded}`} color="default" sx={{ mr: 1 }} />
+                {parseSkills(job.skillsNeeded).map((skill) => (
+                  <Chip key={skill} label={skill} color="default" sx={{ mr: 1, mb: 1 }} />
+                ))}
                 <Chip label={`Type: ${job.collaborationType}`} color="info" sx={{ mr: 1 }} />
-                <Chip label={`Availability: ${job.availability}`} color="success" />
+                <Chip label={`Availability: ${formatDate(job.availability)}`} color="success" />
               </Box>
 
               <Box mt={3}>

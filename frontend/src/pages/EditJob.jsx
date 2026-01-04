@@ -3,7 +3,9 @@ import {
   Box, TextField, Button, MenuItem, Typography, Stack,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { jobPostService } from '../services';
+import { showSuccess, showError } from '../utils';
+import { CollaborationType } from '../constants';
 
 const EditJob = () => {
   const { id } = useParams();
@@ -12,15 +14,13 @@ const EditJob = () => {
   const [imageFile, setImageFile] = useState(null);
 
   useEffect(() => {
-  axios.get(`http://localhost:8080/api/job-post/${id}`, {
-    withCredentials: true
-  })
-    .then(res => setFormData(res.data))
-    .catch(err => {
-      console.error(err);
-      alert('Failed to fetch job details.');
-    });
-    }, [id]);
+    jobPostService.getJobPostById(id)
+      .then(data => setFormData(data))
+      .catch(err => {
+        console.error(err);
+        showError('Failed to fetch job details.');
+      });
+  }, [id]);
 
 
   const handleChange = (e) => {
@@ -38,15 +38,12 @@ const EditJob = () => {
     if (imageFile) payload.append('image', imageFile);
 
     try {
-      await axios.put(`http://localhost:8080/api/job-post/${id}`, payload, {
-        withCredentials: true,
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      alert('Job updated!');
+      await jobPostService.updateJobPost(id, payload);
+      showSuccess('Job updated!');
       navigate('/job');
     } catch (err) {
       console.error(err);
-      alert('Error updating job.');
+      showError('Error updating job.');
     }
   };
 
@@ -64,9 +61,9 @@ const EditJob = () => {
           <TextField name="description" label="Description" multiline rows={4} value={formData.description} onChange={handleChange} fullWidth required />
           <TextField name="skillsNeeded" label="Skills Needed" value={formData.skillsNeeded} onChange={handleChange} fullWidth required />
           <TextField select name="collaborationType" value={formData.collaborationType} onChange={handleChange} fullWidth required>
-            <MenuItem value="Remote">Remote</MenuItem>
-            <MenuItem value="In-Person">In-Person</MenuItem>
-            <MenuItem value="Hybrid">Hybrid</MenuItem>
+            <MenuItem value={CollaborationType.REMOTE}>{CollaborationType.REMOTE}</MenuItem>
+            <MenuItem value={CollaborationType.IN_PERSON}>{CollaborationType.IN_PERSON}</MenuItem>
+            <MenuItem value={CollaborationType.HYBRID}>{CollaborationType.HYBRID}</MenuItem>
           </TextField>
           <TextField type="date" name="availability" label="Availability" InputLabelProps={{ shrink: true }} value={formData.availability} onChange={handleChange} fullWidth required />
           <Button variant="outlined" component="label">

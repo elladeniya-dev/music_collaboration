@@ -2,12 +2,13 @@ import React from 'react';
 import { Card, CardMedia, CardContent, Typography, Box, Button, Chip } from '@mui/material';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
+import { formatDate, parseSkills, truncateText, getUserId, isResourceOwner } from '../utils';
 
 const JobCard = ({ job, onDelete, onUpdate }) => {
   const { user } = useUser();
   const navigate = useNavigate();
 
-  const isOwner = user && job.userId === user.id;
+  const isOwner = isResourceOwner(user, job.userId);
 
   const handleClick = () => {
     navigate(`/jobs/${job.id}`);
@@ -23,14 +24,10 @@ const JobCard = ({ job, onDelete, onUpdate }) => {
     onUpdate(job);
   };
 
-  const formattedDate = new Date(job.availability).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const formattedDate = formatDate(job.availability);
 
-  const skillChips = job.skillsNeeded?.split(',').map((skill) => (
-    <Chip key={skill.trim()} label={skill.trim()} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
+  const skillChips = parseSkills(job.skillsNeeded).map((skill) => (
+    <Chip key={skill} label={skill} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
   ));
 
   return (
@@ -59,7 +56,7 @@ const JobCard = ({ job, onDelete, onUpdate }) => {
           {job.title}
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          {job.description.length > 100 ? job.description.slice(0, 100) + '...' : job.description}
+          {truncateText(job.description, 100)}
         </Typography>
 
         <Box mt={1}>{skillChips}</Box>

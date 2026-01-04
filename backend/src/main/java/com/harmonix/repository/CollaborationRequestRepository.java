@@ -1,6 +1,6 @@
 package com.harmonix.repository;
 
-import com.harmonix.model.CollaborationRequest;
+import com.harmonix.entity.CollaborationRequest;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 

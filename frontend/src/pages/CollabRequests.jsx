@@ -5,9 +5,10 @@ import {
   Tooltip, IconButton, Box, Grid
 } from '@mui/material';
 import { Edit, Send, Add, Delete } from '@mui/icons-material';
-import axios from 'axios';
-import Swal from 'sweetalert2';
 import { useUser } from '../context/UserContext';
+import { collaborationService } from '../services';
+import { showSuccess, showError, showConfirmation } from '../utils';
+import { getUserId } from '../utils';
 
 const CollabRequests = () => {
   const { user } = useUser();
@@ -21,10 +22,8 @@ const CollabRequests = () => {
 
   const fetchRequests = async () => {
     try {
-      const res = await axios.get('http://localhost:8080/api/collab-requests/all', {
-        withCredentials: true,
-      });
-      setRequests(res.data);
+      const data = await collaborationService.getAllCollaborationRequests();
+      setRequests(data);
     } catch (err) {
       console.error('❌ Failed to fetch collaboration requests:', err);
     } finally {
@@ -34,36 +33,29 @@ const CollabRequests = () => {
 
   const handleAccept = async (requestId) => {
     try {
-      await axios.post(`http://localhost:8080/api/collab-requests/${requestId}/accept`, null, {
-        withCredentials: true,
-      });
-      Swal.fire('Accepted!', 'Collaboration request accepted and message sent.', 'success');
+      await collaborationService.acceptCollaborationRequest(requestId);
+      showSuccess('Accepted!', 'Collaboration request accepted and message sent.');
       fetchRequests();
     } catch (err) {
-      Swal.fire('Error', 'Could not accept request.', 'error');
+      showError('Error', 'Could not accept request.');
       console.error(err);
     }
   };
 
   const handleDelete = async (requestId) => {
     try {
-      const confirm = await Swal.fire({
-        title: 'Are you sure?',
-        text: 'This will permanently delete the request.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, delete it!',
-      });
+      const confirmed = await showConfirmation(
+        'Are you sure?',
+        'This will permanently delete the request.'
+      );
 
-      if (confirm.isConfirmed) {
-        await axios.delete(`http://localhost:8080/api/collab-requests/${requestId}`, {
-          withCredentials: true,
-        });
-        Swal.fire('Deleted!', 'Your request has been deleted.', 'success');
+      if (confirmed) {
+        await collaborationService.deleteCollaborationRequest(requestId);
+        showSuccess('Deleted!', 'Your request has been deleted.');
         fetchRequests();
       }
     } catch (err) {
-      Swal.fire('Error', 'Could not delete request.', 'error');
+      showError('Error', 'Could not delete request.');
       console.error(err);
     }
   };
@@ -71,24 +63,16 @@ const CollabRequests = () => {
   const handleCreateOrUpdate = async () => {
     try {
       if (editingId) {
-        await axios.put(
-          `http://localhost:8080/api/collab-requests/${editingId}`,
-          { title, description },
-          { withCredentials: true }
-        );
-        Swal.fire('Updated!', 'Collaboration request updated.', 'success');
+        await collaborationService.updateCollaborationRequest(editingId, { title, description });
+        showSuccess('Updated!', 'Collaboration request updated.');
       } else {
-        await axios.post(
-          'http://localhost:8080/api/collab-requests',
-          { title, description },
-          { withCredentials: true }
-        );
-        Swal.fire('Created!', 'Collaboration request created.', 'success');
+        await collaborationService.createCollaborationRequest({ title, description });
+        showSuccess('Created!', 'Collaboration request created.');
       }
       handleClose();
       fetchRequests();
     } catch (err) {
-      Swal.fire('Error', 'Could not save request.', 'error');
+      showError('Error', 'Could not save request.');
       console.error(err);
     }
   };
@@ -135,7 +119,7 @@ const CollabRequests = () => {
             </Typography>
           ) : (
             requests.map((req) => {
-              const isCreator = req.creatorId === (user?.id || user?._id);
+              const isCreator = req.creatorId === getUserId(user);
               return (
                 <Grid item xs={12} key={req.id}>
                   <Card>

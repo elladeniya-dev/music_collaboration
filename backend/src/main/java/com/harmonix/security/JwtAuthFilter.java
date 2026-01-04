@@ -1,5 +1,7 @@
 package com.harmonix.security;
 
+import com.harmonix.constant.AppConstants;
+import com.harmonix.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -8,10 +10,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Override
@@ -30,8 +34,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
-                if ("token".equals(cookie.getName())) {
-                    String email = JwtUtils.validateAndGetEmail(cookie.getValue());
+                if (AppConstants.TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                    String email = JwtUtil.validateAndGetEmail(cookie.getValue());
                     if (email != null) {
                         UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(

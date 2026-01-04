@@ -1,4 +1,4 @@
-package com.harmonix.security;
+package com.harmonix.util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -6,9 +6,14 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-public class JwtUtils {
+public final class JwtUtil {
+    
     private static String secretKey;
     private static Long expirationTime;
+
+    private JwtUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     public static void initialize(String secret, Long expiration) {
         secretKey = secret;
@@ -40,6 +45,7 @@ public class JwtUtils {
                 .getBody()
                 .getSubject(); // returns email
     }
+    
     public static String validateAndGetEmail(String token) {
         try {
             return validateToken(token);
@@ -47,5 +53,4 @@ public class JwtUtils {
             return null; // invalid or expired token
         }
     }
-
 }
